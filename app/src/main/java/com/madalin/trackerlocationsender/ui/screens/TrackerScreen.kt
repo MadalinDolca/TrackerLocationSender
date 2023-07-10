@@ -1,5 +1,6 @@
 package com.madalin.trackerlocationsender.ui.screens
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -17,34 +18,33 @@ fun TrackerScreen() {
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
     ) {
-        Greeting("Android")
-        /*ButtonPublishData {
-            mqttClient.publishMessage(
-                Topic.tracker_location,
-                "11243,432144"
-            )*/
+        Column() {
+            ButtonRequestPermission(text = "Request permission") {}
+            ButtonPublishData(text = "Publish data") {
+                //mqttClient.publishMessage(Topic.tracker_location, "11243,432144")
+            }
+        }
     }
 }
 
 @Composable
-fun ButtonPublishData(onClick: () -> Unit) {
+fun ButtonRequestPermission(text: String, onClick: () -> Unit) {
     Button(onClick = { onClick() }) {
-        Text(text = "Publish data")
+        Text(text = text)
     }
 }
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
+fun ButtonPublishData(text: String, onClick: () -> Unit) {
+    Button(onClick = { onClick() }) {
+        Text(text = text)
+    }
 }
 
 @Preview(showBackground = true)
 @Composable
 fun GreetingPreview() {
     TrackerLocationSenderTheme {
-        Greeting("Android")
+        TrackerScreen()
     }
 }

@@ -1,84 +1,70 @@
 package com.madalin.trackerlocationsender.hivemq
 
 import android.util.Log
-import com.hivemq.client.internal.mqtt.MqttRxClient
 import com.hivemq.client.mqtt.MqttClient
-import com.hivemq.client.mqtt.MqttClientState
+import com.hivemq.client.mqtt.MqttGlobalPublishFilter
 import com.hivemq.client.mqtt.mqtt5.Mqtt5BlockingClient
-import com.hivemq.client.mqtt.mqtt5.Mqtt5Client
-import com.hivemq.client.mqtt.mqtt5.Mqtt5RxClient
-import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5SimpleAuth
-import com.hivemq.client.mqtt.mqtt5.message.auth.Mqtt5SimpleAuthBuilder
 import com.hivemq.client.mqtt.mqtt5.message.publish.Mqtt5Publish
-import io.reactivex.Flowable
+import java.nio.charset.StandardCharsets
 
-class TrackerMqttClient {
-    private lateinit var mqttClient: Mqtt5BlockingClient
+class TrackerMqttClient(var host: String, var port: Int) {
+    /**
+     * Creates an MQTT client that can connect to [host] at [port].
+     */
+    private var client = MqttClient.builder()
+        .useMqttVersion5()
+        .serverHost(host)
+        .serverPort(port)
+        .sslWithDefaultConfig()
+        .buildBlocking()
 
-    fun connectToBroker() {
-        val simpleAuth = Mqtt5SimpleAuth.builder()
-            .username(ClientCredentials.username)
-            .password(ClientCredentials.password.toByteArray())
-            .build()
+    //.identifier(ClientCredentials.clientId)
+    //.automaticReconnectWithDefaultConfig()
 
-        mqttClient = MqttClient.builder()
-            .useMqttVersion5()
-            .serverHost(BrokerCredentials.serverAddress)
-            .identifier(ClientCredentials.clientId)
-            .simpleAuth(simpleAuth)
-            .buildBlocking()
+    /**
+     * Connects to HiveMQ Cloud with TLS and username/password.
+     */
+    fun connectToBroker(username: String, password: String) {
+        client.connectWith()
+            .simpleAuth()
+            .username(username)
+            .password(StandardCharsets.UTF_8.encode(password))
+            .applySimpleAuth()
+            .send()
 
-        mqttClient.connect()
+        Log.d("CONNACK", "Connected successfully")
+    }
 
-        if (mqttClient.state == MqttClientState.CONNECTED) {
-            // Connection successful
-            Log.d("CONNACK", "Success!")
-        } else {
-            Log.e("Fail", "Failed!")
-            // Connection failed
+    /**
+     * Subscribes to the given topic and sets a callback that is called when a message is received.
+     */
+    fun subscribeToTopic(topic: String) {
+        client.subscribeWith()
+            .topicFilter(topic)
+            .send()
+
+        // set a callback that is called when a message is received (using the async API style)
+        client.toAsync().publishes(MqttGlobalPublishFilter.ALL) { publish: Mqtt5Publish ->
+            println("Received message: " + publish.topic + " -> " + StandardCharsets.UTF_8.decode(publish.payload.get()))
         }
     }
 
-    fun publishMessage(topic: String, message: String) {
-        mqttClient.publishWith()
+    /**
+     * Publishes the given message to the given topic.
+     * @param topic where to publish
+     * @param message content to publish
+     */
+    fun publishToTopic(topic: String, message: String) {
+        client.publishWith()
             .topic(topic)
-            .payload(message.toByteArray())
+            .payload(StandardCharsets.UTF_8.encode(message))
             .send()
     }
 
+    /**
+     * Disconnects this [client] with the default disconnect message.
+     */
     fun disconnect() {
-        if (mqttClient.state === MqttClientState.CONNECTED) {
-            mqttClient.disconnect()
-        }
+        client.disconnect()
     }
-
-    /*fun connectToBroker() {
-        client = Mqtt5Client.builder()
-            .identifier(ClientCredentials.clientId)
-            .serverHost(BrokerCredentials.serverAddress)
-            .automaticReconnectWithDefaultConfig()
-            .sslWithDefaultConfig()
-            .simpleAuth()
-            .username(ClientCredentials.username)
-            .password(ClientCredentials.password.toByteArray())
-            .applySimpleAuth()
-            .buildRx()
-
-        client.connect().blockingGet()
-    }*/
-
-    /* fun publishMessage(topic: String, message: String) {
-         val mqttMessage: Mqtt5Publish = Mqtt5Publish.builder()
-             .topic(topic)
-             .payload(message.toByteArray())
-             .build()
-
-        /* client.publish(mqttMessage).whenComplete { _, throwable ->
-             if (throwable != null) {
-                 // Handle the error
-             } else {
-                 // Message published successfully
-             }
-         }*/
-     }*/
 }

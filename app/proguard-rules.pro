@@ -21,5 +21,5 @@
 #-renamesourcefileattribute SourceFile
 
 # HiveMQ
-#-keepclassmembernames class io.netty.** { *; }
-#-keepclassmembers class org.jctools.** { *; }
+-keepclassmembernames class io.netty.** { *; }
+-keepclassmembers class org.jctools.** { *; }

@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Looper
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -16,6 +15,9 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.madalin.trackerlocationsender.hivemq.BrokerCredentials
+import com.madalin.trackerlocationsender.hivemq.ClientCredentials
+import com.madalin.trackerlocationsender.hivemq.Topic
 import com.madalin.trackerlocationsender.hivemq.TrackerMqttClient
 import com.madalin.trackerlocationsender.ui.screens.TrackerScreen
 import com.madalin.trackerlocationsender.ui.theme.TrackerLocationSenderTheme
@@ -24,7 +26,8 @@ class MainActivity : ComponentActivity() {
     private val LOCATION_PERMISSION_REQUEST_CODE = 1
     private val LOCATION_UPDATE_INTERVAL = 5000L
 
-    private var mqttClient = TrackerMqttClient()
+    private var mqttClient = TrackerMqttClient(BrokerCredentials.host, BrokerCredentials.port)
+
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
 
@@ -32,23 +35,29 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent { TrackerLocationSenderTheme { TrackerScreen() } }
 
-        checkLocationPermission(LOCATION_PERMISSION_REQUEST_CODE)
+        mqttClient.connectToBroker(ClientCredentials.username, ClientCredentials.password)
 
-        //mqttClient.connectToBroker()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         // behavior to handle the received location updates
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) { // most recent location information
                 locationResult.lastLocation?.let { location ->
-                    Log.d("Coordinates", "Lat: ${location.latitude} Lon: ${location.longitude}")
+                    val coordinates = "${location.latitude},${location.longitude}"
+
+                    //if (mqttClient.isConnected()) {
+                    mqttClient.publishToTopic(Topic.tracker_location, coordinates)
+                    //}
                 }
             }
         }
+
+        checkLocationPermission(LOCATION_PERMISSION_REQUEST_CODE)
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        mqttClient.disconnect()
         stopLocationUpdates()
     }
 
@@ -122,48 +131,5 @@ class MainActivity : ComponentActivity() {
      */
     private fun stopLocationUpdates() {
         fusedLocationClient.removeLocationUpdates(locationCallback)
-    }
-
-    /* mqttClient = Mqtt5Client.builder()
-     .serverHost(BrokerCredentials.serverAddress)
-     .identifier(ClientCredentials.clientId)
-     .sslWithDefaultConfig()
-     .automaticReconnectWithDefaultConfig()
-     .simpleAuth()
-     .username(ClientCredentials.username)
-     .password(ClientCredentials.password.toByteArray())
-     .applySimpleAuth()
-     .buildAsync()*/
-
-    //mqttClient.connect()
-
-    /* mqttClient.connect()
-         .whenComplete { connectResult, throwable ->
-             if (throwable != null) {
-                 // Handle connection failure
-                 throwable.printStackTrace()
-             } else {
-                 if (connectResult != null) {
-                     // Connection successful, you can now publish data
-                     Log.d("CONNACK", "Connected")
-                 }
-             }
-         }*/
-
-    fun publishData() {
-        /*mqttClient.publishWith()
-            .topic(Topic.tracker_location)
-            .qos(MqttQos.AT_LEAST_ONCE)
-            .payload("53425,12346".toByteArray())
-            .send()
-            .whenComplete { publish, throwable ->
-                if (throwable != null) {
-                    // Handle publish failure
-                    throwable.printStackTrace()
-                } else {
-                    // Handle publish success
-                    Toast.makeText(this, "Sent", Toast.LENGTH_SHORT).show()
-                }
-            }*/
     }
 }
