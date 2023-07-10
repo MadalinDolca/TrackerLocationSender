@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">TrackerLocationSender</string>
+    <string name="location_access_hasnt_been_granted">Location access hasn\'t been granted</string>
+</resources>
