@@ -8,6 +8,7 @@ import android.os.Looper
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.FusedLocationProviderClient
 import com.google.android.gms.location.LocationCallback
@@ -19,7 +20,9 @@ import com.madalin.trackerlocationsender.hivemq.BrokerCredentials
 import com.madalin.trackerlocationsender.hivemq.ClientCredentials
 import com.madalin.trackerlocationsender.hivemq.Topic
 import com.madalin.trackerlocationsender.hivemq.TrackerMqttClient
-import com.madalin.trackerlocationsender.ui.screens.TrackerScreen
+import com.madalin.trackerlocationsender.models.Coordinates
+import com.madalin.trackerlocationsender.ui.screens.tracker.TrackerScreen
+import com.madalin.trackerlocationsender.ui.screens.tracker.TrackerViewModel
 import com.madalin.trackerlocationsender.ui.theme.TrackerLocationSenderTheme
 
 class MainActivity : ComponentActivity() {
@@ -27,13 +30,14 @@ class MainActivity : ComponentActivity() {
     private val LOCATION_UPDATE_INTERVAL = 5000L
 
     private var mqttClient = TrackerMqttClient(BrokerCredentials.host, BrokerCredentials.port)
+    private val trackerViewModel by viewModels<TrackerViewModel>()
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { TrackerLocationSenderTheme { TrackerScreen() } }
+        setContent { TrackerLocationSenderTheme { TrackerScreen(trackerViewModel) } }
 
         mqttClient.connectToBroker(ClientCredentials.username, ClientCredentials.password)
 
@@ -43,11 +47,12 @@ class MainActivity : ComponentActivity() {
         locationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) { // most recent location information
                 locationResult.lastLocation?.let { location ->
-                    val coordinates = "${location.latitude},${location.longitude}"
+                    val coordinatesMessage = "${location.latitude},${location.longitude}"
+                    val newCoordinates = Coordinates(location.latitude, location.longitude)
 
-                    //if (mqttClient.isConnected()) {
-                    mqttClient.publishToTopic(Topic.tracker_location, coordinates)
-                    //}
+                    //if (mqttClient.isConnected())
+                    mqttClient.publishToTopic(Topic.tracker_location, coordinatesMessage)
+                    trackerViewModel.updateCoordinatesList(newCoordinates)
                 }
             }
         }
