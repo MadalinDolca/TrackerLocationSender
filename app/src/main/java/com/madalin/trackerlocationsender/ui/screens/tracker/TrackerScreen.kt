@@ -28,6 +28,14 @@ fun TrackerScreen(trackerViewModel: TrackerViewModel) {
     val coordinatesListState by trackerViewModel.coordinatesListState.collectAsState()
     val lazyListState = rememberLazyListState()
 
+    LaunchedEffect(coordinatesListState) {
+        // scrolls to the last item whenever the list updates
+        if (coordinatesListState.isNotEmpty()) {
+            lazyListState.scrollToItem(coordinatesListState.lastIndex)
+            lazyListState.animateScrollToItem(coordinatesListState.lastIndex)
+        }
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background
@@ -42,16 +50,11 @@ fun TrackerScreen(trackerViewModel: TrackerViewModel) {
             LazyColumn(
                 state = lazyListState,
                 contentPadding = PaddingValues(all = 5.dp),
-                verticalArrangement = Arrangement.spacedBy(5.dp),
-                reverseLayout = true
+                verticalArrangement = Arrangement.spacedBy(5.dp) //, reverseLayout = true
             ) {
                 items(items = coordinatesListState) { coordinates ->
                     CoordinatesItem(coordinates = coordinates)
                 }
-            }
-
-            LaunchedEffect(Unit) {
-                lazyListState.scrollToItem(index = 0)
             }
         }
     }
