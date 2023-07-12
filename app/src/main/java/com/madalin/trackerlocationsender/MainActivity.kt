@@ -16,10 +16,8 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
-import com.madalin.trackerlocationsender.hivemq.BrokerCredentials
 import com.madalin.trackerlocationsender.hivemq.ClientCredentials
 import com.madalin.trackerlocationsender.hivemq.Topic
-import com.madalin.trackerlocationsender.hivemq.TrackerMqttClient
 import com.madalin.trackerlocationsender.models.Coordinates
 import com.madalin.trackerlocationsender.ui.screens.tracker.TrackerScreen
 import com.madalin.trackerlocationsender.ui.screens.tracker.TrackerViewModel
@@ -29,7 +27,6 @@ class MainActivity : ComponentActivity() {
     private val LOCATION_PERMISSION_REQUEST_CODE = 1
     private val LOCATION_UPDATE_INTERVAL = 5000L
 
-    private var mqttClient = TrackerMqttClient(BrokerCredentials.host, BrokerCredentials.port)
     private val trackerViewModel by viewModels<TrackerViewModel>()
 
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -37,10 +34,13 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { TrackerLocationSenderTheme { TrackerScreen(trackerViewModel) } }
+        setContent {
+            TrackerLocationSenderTheme {
+                TrackerScreen(trackerViewModel)
+            }
+        }
 
-        mqttClient.connectToBroker(ClientCredentials.username, ClientCredentials.password)
-
+        trackerViewModel.mqttClient.connectToBroker(ClientCredentials.username, ClientCredentials.password)
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
         // behavior to handle the received location updates
@@ -50,9 +50,10 @@ class MainActivity : ComponentActivity() {
                     val coordinatesMessage = "${location.latitude},${location.longitude}"
                     val newCoordinates = Coordinates(location.latitude, location.longitude)
 
-                    //if (mqttClient.isConnected())
-                    mqttClient.publishToTopic(Topic.tracker_location, coordinatesMessage)
-                    trackerViewModel.updateCoordinatesList(newCoordinates)
+                    if (trackerViewModel.mqttClient.isConnected()) {
+                        trackerViewModel.mqttClient.publishToTopic(Topic.tracker_location, coordinatesMessage)
+                        trackerViewModel.updateCoordinatesList(newCoordinates)
+                    }
                 }
             }
         }
@@ -62,7 +63,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        mqttClient.disconnect()
+        trackerViewModel.mqttClient.disconnect()
         stopLocationUpdates()
     }
 
@@ -128,7 +129,6 @@ class MainActivity : ComponentActivity() {
         } else {
             Toast.makeText(this, getString(R.string.location_access_hasnt_been_granted), Toast.LENGTH_SHORT).show()
         }
-
     }
 
     /**

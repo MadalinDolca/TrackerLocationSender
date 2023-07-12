@@ -1,9 +1,8 @@
 package com.madalin.trackerlocationsender.hivemq
 
-import android.util.Log
 import com.hivemq.client.mqtt.MqttClient
+import com.hivemq.client.mqtt.MqttClientState
 import com.hivemq.client.mqtt.MqttGlobalPublishFilter
-import com.hivemq.client.mqtt.mqtt5.Mqtt5BlockingClient
 import com.hivemq.client.mqtt.mqtt5.message.publish.Mqtt5Publish
 import java.nio.charset.StandardCharsets
 
@@ -31,8 +30,6 @@ class TrackerMqttClient(var host: String, var port: Int) {
             .password(StandardCharsets.UTF_8.encode(password))
             .applySimpleAuth()
             .send()
-
-        Log.d("CONNACK", "Connected successfully")
     }
 
     /**
@@ -60,6 +57,12 @@ class TrackerMqttClient(var host: String, var port: Int) {
             .payload(StandardCharsets.UTF_8.encode(message))
             .send()
     }
+
+    /**
+     * Checks if the [client] is connected to the broker.
+     * @return true if the client is connected
+     */
+    fun isConnected() = client.state == MqttClientState.CONNECTED
 
     /**
      * Disconnects this [client] with the default disconnect message.

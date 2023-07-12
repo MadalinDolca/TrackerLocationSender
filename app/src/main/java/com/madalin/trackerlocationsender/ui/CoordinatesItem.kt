@@ -11,9 +11,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.madalin.trackerlocationsender.R
 import com.madalin.trackerlocationsender.models.Coordinates
 import com.madalin.trackerlocationsender.ui.theme.TrackerLocationSenderTheme
 import com.madalin.trackerlocationsender.utils.CoordinateType
@@ -22,16 +24,16 @@ import com.madalin.trackerlocationsender.utils.CoordinateType
 fun CoordinatesItem(coordinates: Coordinates) {
     Column(
         modifier = Modifier
-            .background(color = Color.Gray, shape = RoundedCornerShape(10.dp))
+            .background(color = Color.LightGray, shape = RoundedCornerShape(10.dp))
             .fillMaxWidth()
             .padding(10.dp)
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CoordinateNameText("Latitude")
+            CoordinateNameText(stringResource(R.string.latitude))
             CoordinateValueText(coordinates.latitude, CoordinateType.LATITUDE)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            CoordinateNameText("Longitude")
+            CoordinateNameText(stringResource(R.string.longitude))
             CoordinateValueText(coordinates.longitude, CoordinateType.LONGITUDE)
         }
     }
