@@ -53,8 +53,8 @@ fun TrackerScreen(trackerViewModel: TrackerViewModel) {
                 }
             )*/
 
-            ButtonPublishDataTest(trackerViewModel)
-            CoordinatesListSection(trackerViewModel)
+            //ButtonPublishDataTest(trackerViewModel)
+            //CoordinatesListSection(trackerViewModel)
         }
     }
 }

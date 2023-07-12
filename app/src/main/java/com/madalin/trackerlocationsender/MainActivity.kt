@@ -4,33 +4,30 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.os.Looper
-import android.widget.Toast
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationCallback
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationResult
-import com.google.android.gms.location.LocationServices
-import com.google.android.gms.location.Priority
-import com.madalin.trackerlocationsender.hivemq.ClientCredentials
-import com.madalin.trackerlocationsender.hivemq.Topic
-import com.madalin.trackerlocationsender.models.Coordinates
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequest
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
+import androidx.work.WorkRequest
 import com.madalin.trackerlocationsender.ui.screens.tracker.TrackerScreen
 import com.madalin.trackerlocationsender.ui.screens.tracker.TrackerViewModel
 import com.madalin.trackerlocationsender.ui.theme.TrackerLocationSenderTheme
+import com.madalin.trackerlocationsender.utils.DataKeys
+import com.madalin.trackerlocationsender.utils.LocationWorker
+import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
-    private val LOCATION_PERMISSION_REQUEST_CODE = 1
-    private val LOCATION_UPDATE_INTERVAL = 5000L
-
     private val trackerViewModel by viewModels<TrackerViewModel>()
 
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private lateinit var locationCallback: LocationCallback
+    private val LOCATION_PERMISSION_REQUEST_CODE = 1
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,101 +37,79 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        trackerViewModel.mqttClient.connectToBroker(ClientCredentials.username, ClientCredentials.password)
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-
-        // behavior to handle the received location updates
-        locationCallback = object : LocationCallback() {
-            override fun onLocationResult(locationResult: LocationResult) { // most recent location information
-                locationResult.lastLocation?.let { location ->
-                    val coordinatesMessage = "${location.latitude},${location.longitude}"
-                    val newCoordinates = Coordinates(location.latitude, location.longitude)
-
-                    if (trackerViewModel.mqttClient.isConnected()) {
-                        trackerViewModel.mqttClient.publishToTopic(Topic.tracker_location, coordinatesMessage)
-                        trackerViewModel.updateCoordinatesList(newCoordinates)
-                    }
-                }
-            }
-        }
-
-        checkLocationPermission(LOCATION_PERMISSION_REQUEST_CODE)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        trackerViewModel.mqttClient.disconnect()
-        stopLocationUpdates()
-    }
-
-    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-
-        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE) {
-            // if the permission has been granted, start location updates
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                startLocationUpdates()
-            } else {
-                // permission denied
-                // ...
-            }
+        // if location permissions are granted, the location WorkManager will launch
+        if (checkAndRequestLocationPermissions(LOCATION_PERMISSION_REQUEST_CODE)) {
+            createAndLaunchLocationWorkManager()
         }
     }
 
     /**
-     * Check if the permissions to use the location have been granted.
+     * Checks if the permissions to use the location have been granted.
      * Requests permission if they have not yet been granted.
-     * If granted, location updates will start via [startLocationUpdates].
      * @param requestCode location permission request code
+     * @return `true` if every permission has been granted, `false` otherwise
      */
-    private fun Context.checkLocationPermission(requestCode: Int) {
-        if (checkSinglePermission(Manifest.permission.ACCESS_FINE_LOCATION) && // precise location
-            checkSinglePermission(Manifest.permission.ACCESS_COARSE_LOCATION) && // approximate location
-            checkSinglePermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION) // access location in the background
-        ) {
-            startLocationUpdates()
-            return // exits the method
-        }
-
-        // if not granted, requests them
+    private fun Context.checkAndRequestLocationPermissions(requestCode: Int): Boolean {
+        // list of permissions to request
         val permissionsList = arrayOf(
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION,
             Manifest.permission.ACCESS_BACKGROUND_LOCATION
         )
 
-        requestPermissions(permissionsList, requestCode)
-    }
-
-    /**
-     * Checks if the declared [permission] has been granted.
-     * @param permission to check if granted
-     * @return `true` if granted, `false` otherwise
-     */
-    private fun Context.checkSinglePermission(permission: String): Boolean {
-        return ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
-    }
-
-    /**
-     * Starts requesting location updates based on [LocationRequest] preferences having
-     * [LOCATION_UPDATE_INTERVAL] as interval if the location permissions are granted.
-     */
-    private fun startLocationUpdates() {
-        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, LOCATION_UPDATE_INTERVAL).build()
-
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-            && ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        ) {
-            fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
-        } else {
-            Toast.makeText(this, getString(R.string.location_access_hasnt_been_granted), Toast.LENGTH_SHORT).show()
+        // filters the permissions that are not granted
+        val permissionsToRequest = permissionsList.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
+
+        // requests the permissions that are not granted
+        if (permissionsToRequest.isNotEmpty()) {
+            requestPermissions(permissionsToRequest.toTypedArray(), requestCode)
+            return false
+        }
+
+        return true
     }
 
     /**
-     * Removes all location updates of [fusedLocationClient] that have [locationCallback] as a callback.
+     * Creates a constrained periodic WorkRequest that gets enqueued in order to get and publish
+     * the current location of the device.
      */
-    private fun stopLocationUpdates() {
-        fusedLocationClient.removeLocationUpdates(locationCallback)
+    private fun createAndLaunchLocationWorkManager() {
+        // creates the WorkManager instance
+        val workManager = WorkManager.getInstance(this)
+
+        // requirements that need to be met before a WorkRequest can run
+        val constraints = Constraints.Builder()
+            .setRequiresBatteryNotLow(true) // acceptable battery level
+            .setRequiredNetworkType(NetworkType.CONNECTED) // working network connection
+            .build()
+
+        // creates the periodic work request with the constraints
+        val workRequest = PeriodicWorkRequestBuilder<LocationWorker>(15, TimeUnit.MINUTES)
+            .setConstraints(constraints)
+            .build()
+
+        // enqueues the work request
+        workManager.enqueue(workRequest)
+
+        // observes the work request status
+        workManager.getWorkInfoByIdLiveData(workRequest.id)
+            .observe(this) { workInfo ->
+                if (workInfo != null && workInfo.state == WorkInfo.State.SUCCEEDED) {
+                    Log.d("MainActivity", "Worker succeeded")
+
+                    // obtains the new coordinates from the WorkRequest and updates the list
+                    val newCoordinates = workInfo.outputData.getString(DataKeys.LOCATION_COORDINATES)
+
+                    if (newCoordinates != null) {
+                        trackerViewModel.updateCoordinatesList(newCoordinates)
+                        Log.d("MainActivity", "Received coordinates $newCoordinates")
+                    }
+                }
+            }
     }
+
+    // stops the execution of the periodic work
+    // workManager.cancelWorkById(periodicWorkRequest.id)
 }
