@@ -21,41 +21,67 @@ import com.madalin.trackerlocationsender.hivemq.Topic
 import com.madalin.trackerlocationsender.hivemq.TrackerMqttClient
 
 class LocationWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private val mqttClient = TrackerMqttClient(BrokerCredentials.host, BrokerCredentials.port)
+
     private lateinit var outputData: Data
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private var locationCallback: LocationCallback? = null
 
     override fun doWork(): Result {
         // connects this MQTT client to the broker with the given credentials
-        val mqttClient = TrackerMqttClient(BrokerCredentials.host, BrokerCredentials.port)
         mqttClient.connectToBroker(ClientCredentials.username, ClientCredentials.password)
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(applicationContext)
 
-        if (ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-            && ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        ) {
-            fusedLocationClient.lastLocation
-                .addOnSuccessListener { location ->
-                    if (location != null) {
-                        val coordinatesMessage = "${location.latitude},${location.longitude}"
+        // behavior to handle the received location updates
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) { // most recent location information
+                locationResult.lastLocation?.let { location ->
+                    val coordinatesMessage = "${location.latitude},${location.longitude}"
 
-                        if (mqttClient.isConnected()) {
-                            mqttClient.publishToTopic(Topic.tracker_location, coordinatesMessage)
-                            outputData = Data.Builder().putString(DataKeys.LOCATION_COORDINATES, coordinatesMessage).build()
-                            Log.d("LocationWorker", "Location coordinates sent: $coordinatesMessage")
-                        }
+                    if (mqttClient.isConnected()) {
+                        mqttClient.publishToTopic(Topic.tracker_location, coordinatesMessage)
+
+                        outputData = Data.Builder().putString(DataKeys.LOCATION_COORDINATES, coordinatesMessage).build()
+                        Log.d("LocationWorker", "Location coordinates sent: $coordinatesMessage")
                     }
+
+                    stopLocationUpdates()
+                    locationCallback = null
                 }
-            Log.d("LocationWorker", "Location updates started")
-        } else {
-            Log.e("LocationWorker", "Location access hasn't been started")
+            }
         }
 
-        return Result.success() //return Result.success(outputData)
+        startLocationUpdates()
+
+        return Result.success() // Result.success(outputData)
     }
 
     override fun onStopped() {
         super.onStopped()
         Log.d("LocationWorker", "ListenableWorker has stopped")
+    }
+
+    /**
+     * Starts requesting location updates based on [LocationRequest] preferences having
+     * [LOCATION_UPDATE_INTERVAL] as interval if the location permissions are granted.
+     */
+    private fun startLocationUpdates() {
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000L).build()
+
+        if (ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            && ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        ) {
+            locationCallback?.let { fusedLocationClient.requestLocationUpdates(locationRequest, it, Looper.getMainLooper()) }
+        } else {
+            Log.e("LocaitonWorker", "Location permission hasn't been granted")
+        }
+    }
+
+    /**
+     * Removes all location updates of [fusedLocationClient] that have [locationCallback] as a callback.
+     */
+    private fun stopLocationUpdates() {
+        locationCallback?.let { fusedLocationClient.removeLocationUpdates(it) }
     }
 }
