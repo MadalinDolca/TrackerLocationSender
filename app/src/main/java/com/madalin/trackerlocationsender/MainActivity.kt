@@ -7,6 +7,8 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContract
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
 import androidx.work.Constraints
@@ -27,7 +29,7 @@ import java.util.concurrent.TimeUnit
 class MainActivity : ComponentActivity() {
     private val trackerViewModel by viewModels<TrackerViewModel>()
 
-    private val LOCATION_PERMISSION_REQUEST_CODE = 1
+    private val LOCATION_PERMISSION_REQUEST_CODE = 10203
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,6 +42,24 @@ class MainActivity : ComponentActivity() {
         // if location permissions are granted, the location WorkManager will launch
         if (checkAndRequestLocationPermissions(LOCATION_PERMISSION_REQUEST_CODE)) {
             createAndLaunchLocationWorkManager()
+        }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+
+        when (requestCode) {
+            LOCATION_PERMISSION_REQUEST_CODE -> {
+                if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // permission is granted
+                    if (checkAndRequestLocationPermissions(LOCATION_PERMISSION_REQUEST_CODE)) {
+                        createAndLaunchLocationWorkManager()
+                    }
+                } else {
+                    Log.e("MainActivity", "Location permission denied")
+                    createAndLaunchLocationWorkManager()
+                }
+            }
         }
     }
 
