@@ -1,5 +1,5 @@
 # 🖲️ TrackerLocationSender
-This app obtains the current location of the device and sends it to a MQTT broker through a WorkManager.
+This app obtains the current location of the device and sends it to a MQTT broker through a WorkManager every 15 minutes.
 
 MQTT is a lightweight protocol for exchanging messages between devices in a publish-subscribe fashion.
 
