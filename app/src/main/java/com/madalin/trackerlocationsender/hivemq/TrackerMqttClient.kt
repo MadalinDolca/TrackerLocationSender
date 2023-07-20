@@ -1,24 +1,27 @@
 package com.madalin.trackerlocationsender.hivemq
 
+import android.util.Log
+import com.google.gson.Gson
 import com.hivemq.client.mqtt.MqttClient
 import com.hivemq.client.mqtt.MqttClientState
 import com.hivemq.client.mqtt.MqttGlobalPublishFilter
 import com.hivemq.client.mqtt.mqtt5.message.publish.Mqtt5Publish
 import java.nio.charset.StandardCharsets
 
-class TrackerMqttClient(var host: String, var port: Int) {
+class TrackerMqttClient(var host: String, var port: Int, var clientId: String) {
     /**
      * Creates an MQTT client that can connect to [host] at [port].
      */
     private var client = MqttClient.builder()
+        .identifier(clientId)
         .useMqttVersion5()
         .serverHost(host)
         .serverPort(port)
         .sslWithDefaultConfig()
         .buildBlocking()
-
-    //.identifier(ClientCredentials.clientId)
     //.automaticReconnectWithDefaultConfig()
+
+    private val gson = Gson()
 
     /**
      * Connects to HiveMQ Cloud with TLS and username/password.
@@ -49,13 +52,20 @@ class TrackerMqttClient(var host: String, var port: Int) {
     /**
      * Publishes the given message to the given topic.
      * @param topic where to publish
-     * @param message content to publish
+     * @param clientId the client that sends the message
+     * @param latitude of the location
+     * @param longitude of the location
      */
-    fun publishToTopic(topic: String, message: String) {
+    fun publishToTopic(topic: String, clientId: String, latitude: Double, longitude: Double) {
+        val message = MqttMessage(clientId, latitude, longitude)
+        val jsonMessage = gson.toJson(message).toByteArray()
+
         client.publishWith()
             .topic(topic)
-            .payload(StandardCharsets.UTF_8.encode(message))
+            .payload(jsonMessage/*StandardCharsets.UTF_8.encode(message)*/)
             .send()
+
+        Log.d("TrackerMqttClient", "Message published: $message")
     }
 
     /**

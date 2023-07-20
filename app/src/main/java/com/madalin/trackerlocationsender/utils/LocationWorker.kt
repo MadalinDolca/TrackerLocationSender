@@ -21,7 +21,7 @@ import com.madalin.trackerlocationsender.hivemq.Topic
 import com.madalin.trackerlocationsender.hivemq.TrackerMqttClient
 
 class LocationWorker(context: Context, params: WorkerParameters) : Worker(context, params) {
-    private val mqttClient = TrackerMqttClient(BrokerCredentials.host, BrokerCredentials.port)
+    private val mqttClient = TrackerMqttClient(BrokerCredentials.host, BrokerCredentials.port, ClientCredentials.clientId)
 
     private lateinit var outputData: Data
     private lateinit var fusedLocationClient: FusedLocationProviderClient
@@ -40,10 +40,9 @@ class LocationWorker(context: Context, params: WorkerParameters) : Worker(contex
                     val coordinatesMessage = "${location.latitude},${location.longitude}"
 
                     if (mqttClient.isConnected()) {
-                        mqttClient.publishToTopic(Topic.tracker_location, coordinatesMessage)
+                        mqttClient.publishToTopic(Topic.tracker_location, ClientCredentials.clientId, location.latitude, location.longitude)
 
                         outputData = Data.Builder().putString(DataKeys.LOCATION_COORDINATES, coordinatesMessage).build()
-                        Log.d("LocationWorker", "Location coordinates sent: $coordinatesMessage")
                     }
 
                     stopLocationUpdates()
@@ -74,7 +73,7 @@ class LocationWorker(context: Context, params: WorkerParameters) : Worker(contex
         ) {
             locationCallback?.let { fusedLocationClient.requestLocationUpdates(locationRequest, it, Looper.getMainLooper()) }
         } else {
-            Log.e("LocaitonWorker", "Location permission hasn't been granted")
+            Log.e("LocationWorker", "Location permission hasn't been granted")
         }
     }
 

@@ -72,10 +72,13 @@ dependencies {
     implementation 'com.google.android.gms:play-services-location:21.0.1'
 
     // HiveMQ MQTT Client
-    implementation "com.hivemq:hivemq-mqtt-client:1.2.1"
+    implementation 'com.hivemq:hivemq-mqtt-client:1.2.1'
 
     // WorkManager
-    implementation "androidx.work:work-runtime-ktx:2.8.1"
+    implementation 'androidx.work:work-runtime-ktx:2.8.1'
+
+    // Gson
+    implementation 'com.google.code.gson:gson:2.9.0'
 
     testImplementation 'junit:junit:4.13.2'
 

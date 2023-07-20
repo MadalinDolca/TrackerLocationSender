@@ -1,24 +1,19 @@
 package com.madalin.trackerlocationsender.ui.screens.tracker
 
 import androidx.lifecycle.ViewModel
-import androidx.work.Constraints
-import androidx.work.NetworkType
-import androidx.work.PeriodicWorkRequest
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkInfo
-import androidx.work.WorkManager
 import com.madalin.trackerlocationsender.hivemq.BrokerCredentials
+import com.madalin.trackerlocationsender.hivemq.ClientCredentials
 import com.madalin.trackerlocationsender.hivemq.TrackerMqttClient
 import com.madalin.trackerlocationsender.models.Coordinates
-import com.madalin.trackerlocationsender.utils.LocationWorker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import java.util.concurrent.TimeUnit
 
 class TrackerViewModel : ViewModel() {
     private val _coordinatesListState = MutableStateFlow<List<Coordinates>>(emptyList())
     val coordinatesListState: StateFlow<List<Coordinates>> = _coordinatesListState
-    val mqttClient = TrackerMqttClient(BrokerCredentials.host, BrokerCredentials.port)
+
+    @Deprecated("No longer used in here. Switch to LocationWorker.")
+    val mqttClient = TrackerMqttClient(BrokerCredentials.host, BrokerCredentials.port, ClientCredentials.clientId)
 
     fun updateCoordinatesList(newCoordinatesMessage: String) {
         val (latitudeString, longitudeString) = newCoordinatesMessage.split(",")
