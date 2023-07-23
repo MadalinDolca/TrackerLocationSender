@@ -1,5 +1,6 @@
-package com.madalin.trackerlocationsender.ui
+package com.madalin.trackerlocationsender.ui.component
 
+import android.location.Location
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -7,24 +8,25 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.madalin.trackerlocationsender.R
-import com.madalin.trackerlocationsender.models.Coordinates
-import com.madalin.trackerlocationsender.ui.theme.TrackerLocationSenderTheme
-import com.madalin.trackerlocationsender.utils.CoordinateType
+import com.madalin.trackerlocationsender.ui.theme.LightGray
+import com.madalin.trackerlocationsender.util.CoordinateType
 
 @Composable
-fun CoordinatesItem(coordinates: Coordinates) {
+fun CoordinatesItem(
+    coordinates: Location
+) {
     Column(
         modifier = Modifier
-            .background(color = Color.LightGray, shape = RoundedCornerShape(10.dp))
+            .background(color = LightGray, shape = RoundedCornerShape(10.dp))
             .fillMaxWidth()
             .padding(10.dp)
     ) {
@@ -54,14 +56,6 @@ fun CoordinateValueText(value: Double, coordinateType: CoordinateType) {
 
     Text(
         text = "$value$notation",
-        color = Color.Blue
+        color = MaterialTheme.colorScheme.primary
     )
-}
-
-@Preview
-@Composable
-fun CoordinatesItemPreview() {
-    TrackerLocationSenderTheme() {
-        CoordinatesItem(coordinates = Coordinates(1234.0, 5231.0))
-    }
 }

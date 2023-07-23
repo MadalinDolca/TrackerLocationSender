@@ -7,42 +7,26 @@ import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.result.contract.ActivityResultContract
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
-import androidx.work.Constraints
-import androidx.work.NetworkType
-import androidx.work.OneTimeWorkRequest
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkInfo
-import androidx.work.WorkManager
-import androidx.work.WorkRequest
-import com.madalin.trackerlocationsender.ui.screens.tracker.TrackerScreen
-import com.madalin.trackerlocationsender.ui.screens.tracker.TrackerViewModel
+import com.madalin.trackerlocationsender.feature.SenderViewModel
+import com.madalin.trackerlocationsender.ui.screen.TrackerScreen
 import com.madalin.trackerlocationsender.ui.theme.TrackerLocationSenderTheme
-import com.madalin.trackerlocationsender.utils.DataKeys
-import com.madalin.trackerlocationsender.utils.LocationWorker
-import java.util.concurrent.TimeUnit
 
 class MainActivity : ComponentActivity() {
-    private val trackerViewModel by viewModels<TrackerViewModel>()
-
+    private val senderViewModel by viewModels<SenderViewModel>()
     private val LOCATION_PERMISSION_REQUEST_CODE = 10203
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             TrackerLocationSenderTheme {
-                TrackerScreen(trackerViewModel)
+                TrackerScreen(senderViewModel)
             }
         }
 
-        // if location permissions are granted, the location WorkManager will launch
-        if (checkAndRequestLocationPermissions(LOCATION_PERMISSION_REQUEST_CODE)) {
-            createAndLaunchLocationWorkManager()
-        }
+        // request location permission
+        checkAndRequestLocationPermissions(LOCATION_PERMISSION_REQUEST_CODE)
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
@@ -52,12 +36,11 @@ class MainActivity : ComponentActivity() {
             LOCATION_PERMISSION_REQUEST_CODE -> {
                 if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     // permission is granted
-                    if (checkAndRequestLocationPermissions(LOCATION_PERMISSION_REQUEST_CODE)) {
-                        createAndLaunchLocationWorkManager()
-                    }
+                    // ...
                 } else {
+                    // permission not granted; request again
+                    //checkAndRequestLocationPermissions(LOCATION_PERMISSION_REQUEST_CODE)
                     Log.e("MainActivity", "Location permission denied")
-                    createAndLaunchLocationWorkManager()
                 }
             }
         }
@@ -90,46 +73,4 @@ class MainActivity : ComponentActivity() {
 
         return true
     }
-
-    /**
-     * Creates a constrained periodic WorkRequest that gets enqueued in order to get and publish
-     * the current location of the device.
-     */
-    private fun createAndLaunchLocationWorkManager() {
-        // creates the WorkManager instance
-        val workManager = WorkManager.getInstance(this)
-
-        // requirements that need to be met before a WorkRequest can run
-        val constraints = Constraints.Builder()
-            .setRequiresBatteryNotLow(true) // acceptable battery level
-            .setRequiredNetworkType(NetworkType.CONNECTED) // working network connection
-            .build()
-
-        // creates the periodic work request with the constraints
-        val workRequest = PeriodicWorkRequestBuilder<LocationWorker>(15, TimeUnit.MINUTES)
-            .setConstraints(constraints)
-            .build()
-
-        // enqueues the work request
-        workManager.enqueue(workRequest)
-
-        // observes the work request status
-        workManager.getWorkInfoByIdLiveData(workRequest.id)
-            .observe(this) { workInfo ->
-                if (workInfo != null && workInfo.state == WorkInfo.State.SUCCEEDED) {
-                    Log.d("MainActivity", "Worker succeeded")
-
-                    // obtains the new coordinates from the WorkRequest and updates the list
-                    val newCoordinates = workInfo.outputData.getString(DataKeys.LOCATION_COORDINATES)
-
-                    if (newCoordinates != null) {
-                        trackerViewModel.updateCoordinatesList(newCoordinates)
-                        Log.d("MainActivity", "Received coordinates $newCoordinates")
-                    }
-                }
-            }
-    }
-
-    // stops the execution of the periodic work
-    // workManager.cancelWorkById(periodicWorkRequest.id)
 }

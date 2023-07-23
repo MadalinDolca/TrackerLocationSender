@@ -1,8 +1,15 @@
 <resources>
-    <string name="app_name">TrackerLocationSender</string>
+    <string name="app_name">Sender</string>
     <string name="location_access_hasnt_been_granted">Location access hasn\'t been granted</string>
     <string name="latitude">Latitude</string>
     <string name="longitude">Longitude</string>
     <string name="stop_publishing_data">Stop publishing data</string>
     <string name="start_publishing_data">Start publishing data</string>
+    <string name="set_id">Set ID</string>
+    <string name="enter_sender_id_here">Enter sender ID here</string>
+    <string name="stop_publishing_with_workmanager">Stop publishing with WorkManager</string>
+    <string name="start_publishing_with_workmanager">Start publishing with WorkManager</string>
+    <string name="publish_data_even_when_the_app_is_not_in_the_foreground">Publish data even when the app is not in the foreground (every 15 minutes)</string>
+    <string name="publish_data_when_the_app_is_in_foreground">Publish data when the app is in foreground (every 5 seconds)</string>
+    <string name="sender_id_has_been_updated">Sender ID has been updated</string>
 </resources>

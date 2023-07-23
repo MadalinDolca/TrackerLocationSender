@@ -1,4 +1,4 @@
-package com.madalin.trackerlocationsender.utils
+package com.madalin.trackerlocationsender.util
 
 enum class CoordinateType {
     LATITUDE, LONGITUDE
