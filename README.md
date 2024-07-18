@@ -1,7 +1,9 @@
 # 🖲️ TrackerLocationSender
 
 This app obtains the current location of the device and sends it to a MQTT broker every 5 seconds 
-(or every 15 minutes through a WorkManager).
+(or every 15 minutes through a WorkManager). The location would be consumed by [TrackerLocationConsumer](https://github.com/MadalinDolca/TrackerLocationConsumer).
+
+🗓️ Developed during a summer intership at Cognizant
 
 <img src="art/app.png" width="500px"/>
 
